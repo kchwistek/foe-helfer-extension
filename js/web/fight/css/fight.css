@@ -1,0 +1,61 @@
+#FightStat {
+	left: calc(50vw - 250px);
+	top: calc(50vw - 220px);
+	min-width: 500px;
+	max-width: 600px;
+}
+
+#FightStat #FightStatBody {
+	overflow-x: hidden;
+	overflow-y: auto;
+	max-height: 440px;
+	margin-top: 2px;
+}
+
+#FightStat #FightStatBody .show-entity {
+	display: block;
+	width: 20px;
+	height: 20px;
+}
+
+#FightStat #FightStatBody .show-entity img {
+	width: 20px;
+	height: 20px;
+}
+
+#FightStat #FightStatBody table tr td:first-child {
+	white-space: nowrap;
+}
+
+#FightStat #FightStatBody tr:not(.success) strong {
+	color: #ffb539;
+}
+#FightStat .Won {
+	color: greenyellow;
+}
+
+#FightStat .Lost {
+	color: Red;
+}
+
+#FightStatBody .boost {
+	list-style: none;
+	margin:0;
+	padding: 3px 0 3px 20px;
+}
+
+li.defense {
+	background: url('../images/defense.png');
+	background-repeat: no-repeat;
+	background-position: 0 50%;
+	padding: 3px 0 3px 30px;
+	margin: .4em 0;
+}
+
+li.attack {
+	background: transparent url('../images/attack.png');
+	background-repeat: no-repeat;
+	background-position: 0 50%;
+	padding: 3px 0 3px 30px;
+	margin: .4em 0;
+}

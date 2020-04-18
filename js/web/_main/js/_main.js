@@ -670,6 +670,10 @@ const FoEproxy = (function () {
 			$(this).remove();
 		});
 
+		$('#FightStat').fadeToggle(function () {
+		    $(this).remove();
+		});
+		
 		$('#city-map-overlay').fadeToggle(function () {
 			$(this).remove();
 		});

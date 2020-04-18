@@ -173,7 +173,8 @@ if (Languages.PossibleLanguages[lng] === undefined) {
 				'investment',
 				'strategy-points',
 				'citymap',
-				'hidden-rewards'
+				'hidden-rewards',
+				'fight'
 			];
 
 			// Scripte laden (nacheinander)
