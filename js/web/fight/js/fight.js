@@ -9,9 +9,34 @@ FoEproxy.addHandler('BattlefieldService', 'startByBattleType', (data, postData) 
 
     Fight.Cache = data.responseData;
 
-    Fight.Something();
+    Fight.Learn();
 
     console.log('Fight Result Received');
+});
+
+FoEproxy.addHandler('BattlefieldService', 'getArmyPreview', (data, postData) => {
+
+    Fight.Advice(data.responseData);
+    console.log('Enemy Army Info Received ');
+
+});
+
+//
+FoEproxy.addHandler("OtherPlayerService", "getNeighborList", (data, postData) => {
+
+    Neighbor.Seen(data.responseData);
+    console.log('Neighbor list received');
+
+});
+
+//
+
+
+FoEproxy.addHandler('OtherPlayerService', 'getEventsPaginated', (data, postData) => {
+
+    Neighbor.Activity(data.responseData);
+    console.log('Neighbors Activity Info Received ');
+
 });
 
 FoEproxy.addHandler('ArmyUnitManagementService', 'getArmyInfo', (data, postData) => {
@@ -29,13 +54,30 @@ FoEproxy.addHandler('OtherPlayerService', 'visitPlayer', (data, postData) => {
 
 let Neighbor = {
     Neighbors: {},
+	SeenData: null,
     Load: () => {
         let tmp = localStorage.getItem('Neighbors');
         if (tmp) {
             Neighbor.Neighbors = JSON.parse(tmp);
         }
-		
-        Neighbor.Clean();
+
+    },
+	Seen: (neighbors) => {
+		Neighbor.SeenData = neighbors;
+		Neighbor.Load();
+		neighbors.forEach(function (item,key) {
+			if (Neighbor.Neighbors[item.player_id]){
+				// update
+			} else {
+				// vytvor
+			}
+		});
+		console.log(neighbors);
+	},
+	
+    Activity: (activity) => {
+
+        // console.log(activity);
     },
     Save: (neighbor) => {
         Neighbor.Load();
@@ -43,25 +85,55 @@ let Neighbor = {
             'result': neighbor.result,
             'army': neighbor.army,
             'last': neighbor.date,
-			'DefenderBonus': neighbor.DefenderBonus
+            'DefenderBonus': neighbor.DefenderBonus,
+            'last_seen': neighbor.last_seen
         };
         localStorage.setItem('Neighbors', JSON.stringify(Neighbor.Neighbors));
-
     },
     Clean: () => {
         // We have to clean history at some point in time.
+
+        let LastClean = localStorage.getItem('LastClean');
+
+        if (!LastClean) {
+            LastClean = 0;
+        }
+
+        if ((Date.now() - LastClean) >=  604800000 ) { // let's cleanup every 7 days
+
+            Object.keys(Neighbor.Neighbors).forEach(function (item, key) {
+                // compare and undef if needed
+                if ((Date.now() - Neighbor.Neighbors[item].last_seen) > 5169846000) {
+                    // not seen more then 90 days
+                    delete Neighbor.Neighbors[item];
+                } else {
+                    if ((Date.now() - Neighbor.Neighbors[item].last_seen) > 2584923000) {
+                        // not seen more then 30 days
+                        delete Neighbor.Neighbors[item].army;
+                        delete Neighbor.Neighbors[item].result;
+                        delete Neighbor.Neighbors[item].last;
+                        delete Neighbor.Neighbors[item].DefenderBonus;
+                    }
+                }
+            });
+            localStorage.setItem('Neighbors', JSON.stringify(Neighbor.Neighbors));
+            localStorage.setItem('LastClean', Date.now());
+			console.log('cleaning');
+        } else {
+			console.log('skipping cleaning');
+			
+		}
     },
     DeleteAll: () => {
         localStorage.setItem('Neighbors', JSON.stringify({}));
         Neighbor.Load();
     },
     Show: (reader) => {
-		
-		if ($('#FightStat').length != 0) {
-			$('#FightStat').remove();
-		}
-	
-		
+
+        if ($('#FightStat').length != 0) {
+            $('#FightStat').remove();
+        }
+
         if ($('#FightStat').length === 0) {
             HTML.Box({
                 'id': 'FightStat',
@@ -71,59 +143,87 @@ let Neighbor = {
                 'minimize': true
             });
             HTML.AddCssFile('fight');
-			HTML.AddCssFile('unit');
+            HTML.AddCssFile('unit');
         }
-		
+
+        let player_id = reader.CityEntities[0].player_id;
+        let defender_army;
+        let last_fight_result;
+        let last_fight_date;
+
         Neighbor.Load();
-		
 
-		
-		let div = $('#FightStat'),
-			h = [];
+        if (!Neighbor.Neighbors[player_id]) {
+            // There was no interaction with this Neighbor before.
+            Neighbor.Neighbors[player_id] = {};
+        }
 
-		
-		let player_id = reader.CityEntities[0].player_id;
-		let defender_army = Neighbor.Neighbors[player_id].army;
-		
-		if (!Neighbor.Neighbors[player_id].DefenderBonus) {
-		   Neighbor.Neighbors[player_id].DefenderBonus = {'attack': "n/a", 'defense' : "n/a"};
-		}
-		
-		let last_fight_result = (Neighbor.Neighbors[player_id].result == 1)?"Won":"Lost";
-		
-		h.push('<table class="foe-table" style="margin-bottom: 15px">');
-		h.push('<thead>');
-		h.push('<tr>');
-		h.push('<th colspan="3"><strong>' + /* i18n('Boxes.FightStat.LastFight') */'Last Battle</strong> ' + Date(Neighbor.Neighbors[player_id].last) +'</th>');
-		h.push('</tr>');
+        Neighbor.Neighbors[player_id].last_seen = Date.now();
 
-		h.push('</thead>');
-		h.push('<tbody>');
-		
-		h.push("<tr><td><strong>Defender's Army:</strong> ");
-		// populate defenders army
+        if (Neighbor.Neighbors[player_id].army) {
+            defender_army = Neighbor.Neighbors[player_id].army;
+            last_fight_result = (Neighbor.Neighbors[player_id].result == 1) ? "Won" : "Lost";
+        } else {
+            defender_army = {};
+            last_fight_result = "N/A";
+        }
 
-		h.push('<table><tbody><tr>');
-		for (let i in Neighbor.Neighbors[player_id].army ) {
-			h.push('<td><span class="units-icon '+ Neighbor.Neighbors[player_id].army[i].unitTypeId +'"></span></td>')
-		}
-		h.push('</tr></tbody></table>');
-		
-		h.push( '</td>');
-		 h.push( '<td width="100"><ul class="boost"><li class="attack">'+Neighbor.Neighbors[player_id].DefenderBonus.attack+' %</li><li class="defense">'+Neighbor.Neighbors[player_id].DefenderBonus.defense+' %</li></ul></td>');
-		
-		h.push( '<td width="100"><span class="'+last_fight_result+'">Attacker '+last_fight_result+'</td></tr>');
-		
-		h.push('</tbody>');
-		
-		div.find('#FightStatBody').html(h.join(''));
-		div.show();
+        if (!Neighbor.Neighbors[player_id].DefenderBonus) {
+            Neighbor.Neighbors[player_id].DefenderBonus = {
+                'attack': "n/a",
+                'defense': "n/a"
+            };
+        }
+
+        if (Neighbor.Neighbors[player_id].last > 0) {
+            last_fight_date = new Date(Neighbor.Neighbors[player_id].last);
+        } else {
+            last_fight_date = "No one can remember so!";
+        }
+
+        let div = $('#FightStat'),
+        h = [];
+
+        h.push('<table class="foe-table" style="margin-bottom: 15px">');
+        h.push('<thead>');
+        h.push('<tr>');
+        h.push('<th colspan="3"><strong>' + /* i18n('Boxes.FightStat.LastFight') */ 'Last Battle</strong> ' + last_fight_date + '</th>');
+        h.push('</tr>');
+
+        h.push('</thead>');
+        h.push('<tbody>');
+
+        h.push('<tr><td><strong>Defender\'s Army:</strong> ');
+        // populate defenders army
+        if (Neighbor.Neighbors[player_id].army) {
+
+            h.push('<table><tbody><tr>');
+            for (let i in Neighbor.Neighbors[player_id].army) {
+                h.push('<td><span class="units-icon ' + Neighbor.Neighbors[player_id].army[i].unitTypeId + '"></span></td>')
+            }
+            h.push('</tr></tbody></table>');
+        } else {
+            h.push('Unknown');
+        }
+        h.push('</td>');
+        h.push('<td width="100"><ul class="boost"><li class="attack">' + Neighbor.Neighbors[player_id].DefenderBonus.attack + ' %</li><li class="defense">' + Neighbor.Neighbors[player_id].DefenderBonus.defense + ' %</li></ul></td>');
+
+        h.push('<td width="100"><span class="' + last_fight_result + '">Attacker ' + last_fight_result + '</td></tr>');
+
+        h.push('</tbody>');
+
+        div.find('#FightStatBody').html(h.join(''));
+        div.show();
+
+        Neighbor.Save(Neighbor.Neighbors[player_id]);
+
     }
 };
 
 let Fight = {
 
     Cache: null,
+    Enemy: null,
     Units: null,
     Attack: null,
     AttackerBonus: {
@@ -141,24 +241,27 @@ let Fight = {
         "attack": 0,
         "defense": 0
     },
-    Something: () => {
-		Fight.DefenderBonus = {
-			'attack' : 0,
-			'defense' :0
-		};
-		Fight.AttackerBonus = {
-        "attack": 0,
-        "defense": 0
-		};
+    Advice: (enemy) => {
+        console.log(enemy);
+    },
+    Learn: () => {
+        Fight.DefenderBonus = {
+            'attack': 0,
+            'defense': 0
+        };
+        Fight.AttackerBonus = {
+            "attack": 0,
+            "defense": 0
+        };
         Fight.Attack = [];
         Fight.Defense = [];
 
-		Fight.Damage = {
-        "Attacker": 0,
-        "AttackerHitPoints": 0,
-        "Defender": 0,
-        "DefenderHitPoints": 0
-		};
+        Fight.Damage = {
+            "Attacker": 0,
+            "AttackerHitPoints": 0,
+            "Defender": 0,
+            "DefenderHitPoints": 0
+        };
 
         for (let i in Fight.Cache['state']['unitsOrder']) {
 
@@ -185,7 +288,7 @@ let Fight = {
         }
 
         for (let i in Fight.Attack[0].bonuses) {
-            console.log(Fight.Attack[0].bonuses[i].type);
+            // console.log(Fight.Attack[0].bonuses[i].type);
             if (Fight.Attack[0].bonuses[i].value) {
                 switch (Fight.Attack[0].bonuses[i].type) {
 
@@ -254,12 +357,15 @@ let Fight = {
                 'id': Fight.Cache.defenderPlayerId,
                 'army': Fight.Defense,
                 'date': Date.now(),
+                'last_seen': Date.now(),
                 'result': Fight.Cache.state.winnerBit,
-				'DefenderBonus': Fight.DefenderBonus
+                'DefenderBonus': Fight.DefenderBonus
             };
+
             Neighbor.Save(neighbor);
+            Neighbor.Clean();
         }
-        console.log(Fight.Vector());
+        // console.log(Fight.Vector());
         Fight.Send(Fight.Vector());
     },
 
@@ -302,6 +408,5 @@ let Fight = {
 
         return vector;
     }
-
 
 };
